@@ -1,0 +1,76 @@
+{
+ "version": 1,
+ "rows": 4,
+ "align": "fill",
+ "rfill": "0, 0, 0, 1",
+ "widgets": [
+  {
+   "type": "frame",
+   "title": "%CPU",
+   "halign": "fill",
+   "bg": "light",
+   "widget": {
+    "cols": 12,
+    "border": "none",
+    "halign": "fill",
+    "cpadf": "1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1",
+    "cfill": "12 * 0",
+    "widgets": [
+     {"type": "label", "text": "000.0", "uid": "cpus_usr", "tattr": "bold"},
+     {"type": "label", "text": "usr"},
+     {"type": "label", "text": "000.0", "uid": "cpus_sys", "tattr": "bold"},
+     {"type": "label", "text": "sys"},
+     {"type": "label", "text": "000.0", "uid": "cpus_nice", "tattr": "bold"},
+     {"type": "label", "text": "nice"},
+     {"type": "label", "text": "000.0", "uid": "cpus_idle", "tattr": "bold"},
+     {"type": "label", "text": "idle"},
+     {"type": "label", "text": "000.0", "uid": "cpus_iowait", "tattr": "bold"},
+     {"type": "label", "text": "wait"},
+     {"type": "label", "text": "000.0", "uid": "cpus_steal", "tattr": "bold"},
+     {"type": "label", "text": "steal"}
+    ]
+   }
+  },
+  {
+   "type": "frame",
+   "title": "Tasks",
+   "halign": "fill",
+   "bg": "light",
+   "widget": {
+    "cols": 10,
+    "border": "none",
+    "halign": "fill",
+    "cpadf": "1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1",
+    "cfill": "10 * 0",
+    "widgets": [
+     {"type": "label", "text": "000", "uid": "tasks_total", "tattr": "bold"},
+     {"type": "label", "text": "total"},
+     {"type": "label", "text": "000", "uid": "tasks_running", "tattr": "bold"},
+     {"type": "label", "text": "running"},
+     {"type": "label", "text": "000", "uid": "tasks_sleeping", "tattr": "bold"},
+     {"type": "label", "text": "sleeping"},
+     {"type": "label", "text": "000", "uid": "tasks_stopped", "tattr": "bold"},
+     {"type": "label", "text": "stopped"},
+     {"type": "label", "text": "000", "uid": "tasks_zombie", "tattr": "bold"},
+     {"type": "label", "text": "zombie"}
+    ]
+   }
+  },
+  null,
+  {
+   "type": "table",
+   "uid": "proc_list",
+   "align": "fill",
+   "header": [
+    {"label": "PID", "min_size": 5, "get": "proc_get_pid", "sort": "proc_sort_by_pid"},
+    {"label": "USER", "min_size": 6, "get": "proc_get_usr"},
+    {"label": "CPU", "min_size": 4, "get": "proc_get_cpu", "sort": "proc_sort_by_cpu", "order": "desc"},
+    {"label": "MEM", "min_size": 8, "get": "proc_get_mem", "sort": "proc_sort_by_mem"},
+    {"min_size": 1, "align": "center", "get": "proc_get_state", "sort": "proc_sort_by_state"},
+    {"label": "COMMAND", "min_size": 10, "get": "proc_get_cmd", "fill": 1}
+   ],
+   "min_rows": 10,
+   "set_row": "proc_set_row"
+  }
+ ]
+}
