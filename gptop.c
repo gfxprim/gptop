@@ -43,7 +43,7 @@ enum elem {
 	CMD,
 };
 
-static int proc_get_elem(gp_widget *self, gp_widget_table_cell *cell, int col)
+static int procs_get_cell(gp_widget *self, gp_widget_table_cell *cell, unsigned int col)
 {
 	static char buf[100];
 	size_t page_size = getpagesize();
@@ -84,37 +84,7 @@ static int proc_get_elem(gp_widget *self, gp_widget_table_cell *cell, int col)
 	return 1;
 }
 
-int proc_get_pid(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, PID);
-}
-
-int proc_get_usr(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, USR);
-}
-
-int proc_get_cpu(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, CPU);
-}
-
-int proc_get_mem(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, MEM);
-}
-
-int proc_get_state(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, STATE);
-}
-
-int proc_get_cmd(gp_widget *self, gp_widget_table_cell *cell)
-{
-	return proc_get_elem(self, cell, CMD);
-}
-
-int proc_set_row(gp_widget *self, int op, unsigned int pos)
+static int procs_seek_row(gp_widget *self, int op, unsigned int pos)
 {
 	switch (op) {
 	case GP_TABLE_ROW_RESET:
@@ -123,7 +93,7 @@ int proc_set_row(gp_widget *self, int op, unsigned int pos)
 	case GP_TABLE_ROW_ADVANCE:
 		self->tbl->row_idx += pos;
 	break;
-	case GP_TABLE_ROW_TELL:
+	case GP_TABLE_ROW_MAX:
 		return procs_cnt;
 	break;
 	}
@@ -184,41 +154,30 @@ static int (*cmps_desc[])(const void *, const void *) = {
 
 static int (*procs_cmp)(const void *, const void *);
 
-static void proc_sort(unsigned int col, int desc)
+static void procs_sort(gp_widget *self, int desc, unsigned int col)
 {
+	(void) self;
+
 	if (desc)
 		procs_cmp = cmps_desc[col];
 	else
 		procs_cmp = cmps_asc[col];
 }
 
-void proc_sort_by_cpu(gp_widget *self, int desc)
-{
-	(void) self;
-
-	proc_sort(CPU, desc);
-}
-
-void proc_sort_by_pid(gp_widget *self, int desc)
-{
-	(void) self;
-
-	proc_sort(PID, desc);
-}
-
-void proc_sort_by_mem(gp_widget *self, int desc)
-{
-	(void) self;
-
-	proc_sort(MEM, desc);
-}
-
-void proc_sort_by_state(gp_widget *self, int desc)
-{
-	(void) self;
-
-	proc_sort(MEM, desc);
-}
+gp_widget_table_col_ops procs_ops = {
+	.sort = procs_sort,
+	.seek_row = procs_seek_row,
+	.get_cell = procs_get_cell,
+	.col_map = {
+		{.id = "pid", .idx = PID, .sortable = 1},
+		{.id = "usr", .idx = USR},
+		{.id = "cpu", .idx = CPU, .sortable = 1},
+		{.id = "mem", .idx = MEM, .sortable = 1},
+		{.id = "state", .idx = STATE, .sortable = 1},
+		{.id = "cmd", .idx = CMD},
+		{}
+	}
+};
 
 static void sort_procs(void)
 {

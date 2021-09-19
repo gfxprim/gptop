@@ -61,16 +61,16 @@
    "type": "table",
    "uid": "proc_list",
    "align": "fill",
-   "header": [
-    {"label": "PID", "min_size": 5, "get": "proc_get_pid", "sort": "proc_sort_by_pid"},
-    {"label": "USER", "min_size": 6, "get": "proc_get_usr"},
-    {"label": "CPU", "min_size": 4, "get": "proc_get_cpu", "sort": "proc_sort_by_cpu", "order": "desc"},
-    {"label": "MEM", "min_size": 8, "get": "proc_get_mem", "sort": "proc_sort_by_mem"},
-    {"min_size": 1, "align": "center", "get": "proc_get_state", "sort": "proc_sort_by_state"},
-    {"label": "COMMAND", "min_size": 10, "get": "proc_get_cmd", "fill": 1}
-   ],
    "min_rows": 10,
-   "set_row": "proc_set_row"
+   "col_ops": "procs_ops",
+   "header": [
+    {"label": "PID", "min_size": 5, "id": "pid"},
+    {"label": "USER", "min_size": 6, "id": "usr"},
+    {"label": "CPU", "min_size": 4, "id": "cpu", "order": "desc"},
+    {"label": "MEM", "min_size": 8, "id": "mem"},
+    {"min_size": 1, "align": "center", "id": "state"},
+    {"label": "COMMAND", "min_size": 10, "id": "cmd", "fill": 1}
+   ]
   }
  ]
 }
