@@ -214,7 +214,7 @@ static void load_procs(void)
 			if (pid->pcpu)
 				pp->pcpu = pcpu - pid->pcpu;
 			else
-				pp->pcpu = 0;
+				pp->pcpu = pcpu;
 
 			pid->pcpu = pcpu;
 		}
