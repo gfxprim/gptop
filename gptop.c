@@ -2,7 +2,7 @@
 
 /*
 
-   Copyright (c) 2014-2021 Cyril Hrubis <metan@ucw.cz>
+   Copyright (c) 2021-2023 Cyril Hrubis <metan@ucw.cz>
 
  */
 
@@ -305,6 +305,18 @@ static gp_timer refresh_timer = {
 	.id = "Refresh",
 };
 
+gp_app_info app_info = {
+	.name = "gptop",
+	.desc = "A top like application",
+	.version = "1.0",
+	.license = "GPL-2.0-or-later",
+	.url = "http://github.com/gfxprim/elecalc",
+	.authors = (gp_app_info_author []) {
+		{.name = "Cyril Hrubis", .email = "metan@ucw.cz", .years = "2021-2023"},
+		{}
+	}
+};
+
 int main(int argc, char *argv[])
 {
 	gp_htable *uids;
@@ -338,7 +350,7 @@ int main(int argc, char *argv[])
 
 	gp_widgets_timer_ins(&refresh_timer);
 
-	gp_widgets_main_loop(layout, "gptop", NULL, argc, argv);
+	gp_widgets_main_loop(layout, NULL, argc, argv);
 
 	return 0;
 }
