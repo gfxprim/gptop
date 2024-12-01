@@ -1,6 +1,6 @@
-CFLAGS?=-W -Wall -Wextra -O2
+CFLAGS?=-W -Wall -Wextra -O2 -ggdb
 CFLAGS+=$(shell gfxprim-config --cflags)
-LDLIBS=-lgfxprim $(shell gfxprim-config --libs-widgets) -lprocps
+LDLIBS=-lgfxprim $(shell gfxprim-config --libs-widgets) -lsysinfo
 BIN=gptop
 DEP=$(BIN:=.dep)
 

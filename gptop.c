@@ -8,23 +8,17 @@
 
 #include <string.h>
 #include <errno.h>
-#include <proc/readproc.h>
 
 #include <widgets/gp_widgets.h>
 
 #include "pidhash.h"
 #include "cpustats.h"
 
-static proc_t **procs;
-static unsigned int procs_cnt;
-
 static gp_widget *plist, *tasks_total, *tasks_running, *tasks_sleeping,
                  *tasks_stopped, *tasks_zombie;
 
 static gp_widget *cpus_usr, *cpus_sys, *cpus_nice,
 		 *cpus_idle, *cpus_iowait, *cpus_steal;
-
-static struct pidhash pidhash;
 
 static struct cpustats cpustats;
 
@@ -47,38 +41,39 @@ static int procs_get_cell(gp_widget *self, gp_widget_table_cell *cell, unsigned 
 {
 	static char buf[100];
 	size_t page_size = getpagesize();
+        gp_widget_table_priv *tbl_priv = gp_widget_table_priv_get(self);
 
 	cell->text = buf;
 	cell->tattr = GP_TATTR_MONO;
 
-	proc_t *p = procs[self->tbl->row_idx];
+	struct pid *p = pid_table[tbl_priv->row_idx];
 
 	switch (col) {
 	case PID:
-		snprintf(buf, sizeof(buf), "%i", p->tid);
+		snprintf(buf, sizeof(buf), "%i", p->stat.pid);
 		cell->tattr |= GP_TATTR_RIGHT;
 	break;
 	case USR:
 		cell->tattr = GP_TATTR_LEFT;
-		cell->text = p->euser;
+		cell->text = uid_map_get(p->stat.euid);
 	break;
 	case CPU:
 		snprintf(buf, sizeof(buf), "%.1f", 100.00 * p->pcpu / clk_ticks / (refresh_ms / 1000));
 	break;
 	case MEM:
-		gp_str_file_size(buf, sizeof(buf), p->resident * page_size);
+		gp_str_file_size(buf, sizeof(buf), p->stat.rss * page_size);
 	break;
 	case STATE:
 		cell->tattr = GP_TATTR_CENTER;
-		snprintf(buf, sizeof(buf), "%c", p->state);
+		snprintf(buf, sizeof(buf), "%c", p->stat.state);
 	break;
 	case CMD:
 		cell->tattr = GP_TATTR_LEFT;
-		cell->text = p->cmd;
+		cell->text = p->stat.comm;
 	break;
 	}
 
-	if (p->state == 'R')
+	if (p->stat.state == 'R')
 		cell->tattr |= GP_TATTR_BOLD;
 
 	return 1;
@@ -86,69 +81,71 @@ static int procs_get_cell(gp_widget *self, gp_widget_table_cell *cell, unsigned 
 
 static int procs_seek_row(gp_widget *self, int op, unsigned int pos)
 {
+	gp_widget_table_priv *tbl_priv = gp_widget_table_priv_get(self);
+
 	switch (op) {
 	case GP_TABLE_ROW_RESET:
-		self->tbl->row_idx = 0;
+		tbl_priv->row_idx = 0;
 	break;
 	case GP_TABLE_ROW_ADVANCE:
-		self->tbl->row_idx += pos;
+		tbl_priv->row_idx += pos;
 	break;
 	case GP_TABLE_ROW_MAX:
-		return procs_cnt;
+		return pidhash_cnt();
 	break;
 	}
 
-	if (self->tbl->row_idx < procs_cnt)
+	if (tbl_priv->row_idx < pidhash_cnt())
 		return 1;
 
 	return 0;
 }
 
-#define MAKE_CMP_ASC_INT(NAME)                                        \
+#define MAKE_CMP_ASC_INT(NAME, MEMB)                                  \
 static int procs_cmp_##NAME##_asc(const void *ptr1, const void *ptr2) \
 {                                                                     \
-	const proc_t *p1 = *((proc_t**)ptr1);                         \
-	const proc_t *p2 = *((proc_t**)ptr2);                         \
+	const struct pid *p1 = *((struct pid**)ptr1);                 \
+	const struct pid *p2 = *((struct pid**)ptr2);                 \
                                                                       \
-	return p1->NAME - p2->NAME;                                   \
+	return p1->MEMB - p2->MEMB;                                   \
 }
 
 #define CMP_ASC(NAME) procs_cmp_##NAME##_asc
 
-#define MAKE_CMP_DESC_INT(NAME)                                        \
+#define MAKE_CMP_DESC_INT(NAME, MEMB)                                  \
 static int procs_cmp_##NAME##_desc(const void *ptr1, const void *ptr2) \
 {                                                                      \
-	const proc_t *p1 = *((proc_t**)ptr1);                          \
-	const proc_t *p2 = *((proc_t**)ptr2);                          \
+	const struct pid *p1 = *((struct pid**)ptr1);                  \
+	const struct pid *p2 = *((struct pid**)ptr2);                  \
                                                                        \
-	return p2->NAME - p1->NAME;                                    \
+	return p2->MEMB - p1->MEMB;                                    \
 }
 
 #define CMP_DESC(NAME) procs_cmp_##NAME##_desc
 
-MAKE_CMP_ASC_INT(tid);
-MAKE_CMP_DESC_INT(tid);
+MAKE_CMP_ASC_INT(pid, stat.pid);
+MAKE_CMP_DESC_INT(pid, stat.pid);
 
-MAKE_CMP_ASC_INT(pcpu);
-MAKE_CMP_DESC_INT(pcpu);
+MAKE_CMP_ASC_INT(pcpu, pcpu);
+MAKE_CMP_DESC_INT(pcpu, pcpu);
 
-MAKE_CMP_ASC_INT(resident);
-MAKE_CMP_DESC_INT(resident);
+MAKE_CMP_ASC_INT(rss, stat.rss);
+MAKE_CMP_DESC_INT(rss, stat.rss);
 
-MAKE_CMP_ASC_INT(state);
-MAKE_CMP_DESC_INT(state);
+MAKE_CMP_ASC_INT(state, stat.state);
+MAKE_CMP_DESC_INT(state, stat.state);
 
 static int (*cmps_asc[])(const void *, const void *) = {
-	[PID] = CMP_ASC(tid),
+	[PID] = CMP_ASC(pid),
 	[CPU] = CMP_ASC(pcpu),
-	[MEM] = CMP_ASC(resident),
+	[MEM] = CMP_ASC(rss),
 	[STATE] = CMP_ASC(state),
 };
 
 static int (*cmps_desc[])(const void *, const void *) = {
-	[PID] = CMP_DESC(tid),
+	[PID] = CMP_DESC(pid),
 	[CPU] = CMP_DESC(pcpu),
-	[MEM] = CMP_DESC(resident),
+	[MEM] = CMP_DESC(rss),
 	[STATE] = CMP_DESC(state),
 };
 
@@ -184,7 +181,7 @@ static void sort_procs(void)
 	if (!procs_cmp)
 		return;
 
-	qsort(procs, procs_cnt, sizeof(proc_t *), procs_cmp);
+	qsort(pid_table, pidhash_cnt(), sizeof(struct pid *), procs_cmp);
 }
 
 static void load_procs(void)
@@ -194,55 +191,58 @@ static void load_procs(void)
 	unsigned int stopped = 0;
 	unsigned int zombie = 0;
 
-	proc_t **p;
+	struct read_proc proc;
 
-	procs_cnt = 0;
+	read_proc_init(&proc);
 
-	procs = readproctab(PROC_FILLCOM | PROC_FILLSTAT | PROC_FILLMEM | PROC_FILLUSR);
-	if (!procs)
-		return;
-
-	for (p = procs; *p; p++) {
-		proc_t *pp = *p;
-		int pcpu;
-
-		struct pid *pid = pidhash_lookup(&pidhash, pp->tid);
+	while (read_proc_next(&proc)) {
+		struct pid *pid = pidhash_lookup(proc.pid);
 
 		if (pid) {
-			pcpu = pp->utime + pp->stime;
+			/*
+			 * If process was removed while being parsed we marked
+			 * it for removal.
+			 */
+			if (read_proc_stat(&proc, &pid->stat)) {
+				printf("REMOVING PID %i\n", pid->stat.pid);
+				pid->seen = 0;
+				pid->stat.pid = -1000;
+			}
 
-			if (pid->pcpu)
-				pp->pcpu = pcpu - pid->pcpu;
+			uint64_t pcpu = pid->stat.utime + pid->stat.stime;
+
+			if (pid->lcpu)
+				pid->pcpu = pcpu - pid->lcpu;
 			else
-				pp->pcpu = pcpu;
+				pid->pcpu = pcpu;
 
-			pid->pcpu = pcpu;
-		}
+			pid->lcpu = pcpu;
 
-		procs_cnt++;
-
-		switch (pp->state) {
-		case 'T':
-		case 't':
-			stopped++;
-		break;
-		case 'R':
-			running++;
-		break;
-		case 'Z':
-			zombie++;
-		break;
-		default:
-			sleeping++;
+			switch (pid->stat.state) {
+			case 'T':
+			case 't':
+				stopped++;
+			break;
+			case 'R':
+				running++;
+			break;
+			case 'Z':
+				zombie++;
+			break;
+			default:
+				sleeping++;
+			}
 		}
 	}
 
-	pidhash_trim(&pidhash);
+	read_proc_exit(&proc);
+
+	pidhash_trim();
 
 	sort_procs();
 
 	if (tasks_total)
-		gp_widget_label_printf(tasks_total, "%u", procs_cnt);
+		gp_widget_label_printf(tasks_total, "%zu", pidhash_cnt());
 
 	if (tasks_running)
 		gp_widget_label_printf(tasks_running, "%u", running);
@@ -283,12 +283,6 @@ static void update_cpustats(void)
 static uint32_t refresh_callback(gp_timer *self)
 {
 	(void) self;
-	proc_t **p;
-
-	for (p = procs; *p; p++)
-		freeproc(*p);
-
-	free(procs);
 
 	load_procs();
 
@@ -340,11 +334,9 @@ int main(int argc, char *argv[])
 	cpus_steal = gp_widget_by_uid(uids, "cpus_steal", GP_WIDGET_LABEL);
 
 	cpustats_init(&cpustats);
-	pidhash_init(&pidhash);
+	pidhash_init();
 
 	load_procs();
-	if (!procs)
-		return 0;
 
 	clk_ticks = sysconf(_SC_CLK_TCK);
 
