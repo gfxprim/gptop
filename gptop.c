@@ -340,7 +340,7 @@ int main(int argc, char *argv[])
 
 	clk_ticks = sysconf(_SC_CLK_TCK);
 
-	gp_widgets_timer_ins(&refresh_timer);
+	gp_app_timer_start(&refresh_timer);
 
 	gp_widgets_main_loop(layout, NULL, argc, argv);
 
